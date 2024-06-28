@@ -147,10 +147,14 @@ def main(hf_model_id: str, model_type: OutputEnum, output_folder: str):
 
         test_file = open("test.py", "w+")
         test_file.write(new_code + f"\n{row['tests']}\n" + "print('SUCCESS')")
-        output, error = run_python_file_with_timeout("test.py", 7)
+        execution_output, error = run_python_file_with_timeout("test.py", 7)
 
-        out_file = open(os.path.join(output_folder, f"{row['id']}.txt"), "w+")
+        out_file = open(os.path.join(output_folder, f"{row['id']}_direct.txt"), "w+")
         out_file.write(output)
+        out_file.close()
+
+        out_file = open(os.path.join(output_folder, f"{row['id']}_processed.txt"), "w+")
+        out_file.write(new_code)
         out_file.close()
 
         # Evaluate the response length in number of tokens
@@ -159,7 +163,7 @@ def main(hf_model_id: str, model_type: OutputEnum, output_folder: str):
 
         output_data_json[row["id"]] = {}
         output_data_json[row["id"]]["length"] = len(tokens)
-        output_data_json[row["id"]]["correct"] = ("SUCCESS" in output)
+        output_data_json[row["id"]]["correct"] = ("SUCCESS" in execution_output)
         
         token_count += len(tokens)
         accurate_count += 1
