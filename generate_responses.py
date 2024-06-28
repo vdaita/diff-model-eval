@@ -91,7 +91,7 @@ def add_ir_modifications_to_code(original_code, modification_xml):
 
 def extract_code_block_for_direct_modifications(response):
     try:
-        return response.split("```python")[1].split("```")[0].strip()
+        return response.split("```python")[1].split("```")[1].strip() # The first case of this is in the instruction.
     except:
         print("Failed to parse code block: ", response)
         return ""
