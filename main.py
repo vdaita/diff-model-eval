@@ -126,11 +126,11 @@ def main(hf_model_id: str, model_type: OutputEnum, output_folder: str):
     accurate_count = 0
     
     for row in tqdm(dataset):
-        old_contents = f"<TOP/>\n{row['old_contents']}"
-        formatted_input = f"# File:\n{old_contents}\n# Instruction:{row['instruction']}"
+        old_contents = f"<TOP/>\n{row['before']}"
+        formatted_input = f"# File:\n{old_contents}\n# Instruction:{row['instruction_descriptive']}"
         if model_type == "whole":
             formatted_input += "Please rewrite the output in the form of a Python code block (start with ```python and end with ```)."
-        output = pipe(formatted_input, do_sample=True, top_p=0.95, **{"use_cache": True})
+        output = pipe(formatted_input, do_sample=True, max_new_tokens=500, top_p=0.95, **{"use_cache": True})
         output = output[0]
         # Take the output, save it, run it, and then check that it worked
         if not(os.path.exists(output_folder)):
