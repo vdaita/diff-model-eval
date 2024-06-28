@@ -92,7 +92,7 @@ def add_ir_modifications_to_code(original_code, modification_xml):
 def extract_code_block_for_direct_modifications(response):
     code_block_re = re.compile(r'```python(.*?)```')
     matches = code_block_re.findall(response)
-    if matches > 0:
+    if len(matches) > 0:
         return matches[0]
     else:
         return ""
@@ -131,7 +131,8 @@ def main(hf_model_id: str, model_type: OutputEnum, output_folder: str):
         if model_type == "whole":
             formatted_input += "Please rewrite the output in the form of a Python code block (start with ```python and end with ```)."
         output = pipe(formatted_input, do_sample=True, max_new_tokens=500, top_p=0.95, **{"use_cache": True})
-        output = output[0]
+        output = output[0]["generated_text"]
+        # print(output)
         # Take the output, save it, run it, and then check that it worked
         if not(os.path.exists(output_folder)):
             os.makedirs(output_folder)
@@ -145,8 +146,8 @@ def main(hf_model_id: str, model_type: OutputEnum, output_folder: str):
             new_code = extract_code_block_for_direct_modifications(output)
 
         test_file = open("test.py", "w+")
-        test_file.write(new_code + f"\n{row['test']}\n" + "print('SUCCESS')")
-        output = run_python_file_with_timeout("test.py")
+        test_file.write(new_code + f"\n{row['tests']}\n" + "print('SUCCESS')")
+        output, error = run_python_file_with_timeout("test.py", 7)
 
         out_file = open(os.path.join(output_folder, f"{row['id']}.txt"), "w+")
         out_file.write(output)
