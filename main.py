@@ -9,6 +9,14 @@ import os
 import json
 import diff_utils
 import subprocess
+from enum import Enum
+
+class OutputEnum(str, Enum):
+    line = "line"
+    ir = "ir"
+    whole = "whole"
+    udiff = "udiff"
+
 
 def add_line_modifications_to_code(original_code, modification_xml):
     new_code = []
@@ -106,10 +114,12 @@ def run_python_file_with_timeout(file_path, timeout):
     except Exception as e:
         return "", str(e)
 
-def main(hf_model_id: str, model_type: Literal['line', 'ir', 'whole', 'udiff'], output_folder: str):
+def main(hf_model_id: str, model_type: OutputEnum, output_folder: str):
     dataset = load_dataset("nuprl/CanItEdit", split="test")
     pipe = pipeline(model=hf_model_id, torch_dtype=torch.bfloat16, device_map="auto")
     tokenizer = AutoTokenizer.from_pretrained(hf_model_id)
+
+    model_type = model_type.value
 
     output_data_json = {}
     token_count = 0
