@@ -90,11 +90,10 @@ def add_ir_modifications_to_code(original_code, modification_xml):
     return new_code
 
 def extract_code_block_for_direct_modifications(response):
-    code_block_re = re.compile(r'```python(.*?)```')
-    matches = code_block_re.findall(response)
-    if len(matches) > 0:
-        return matches[0]
-    else:
+    try:
+        return response.split("```python")[1].split("```")[0].strip()
+    except:
+        print("Failed to parse code block: ", response)
         return ""
 
 def run_python_file_with_timeout(file_path, timeout):
@@ -117,7 +116,6 @@ def run_python_file_with_timeout(file_path, timeout):
 def main(hf_model_id: str, model_type: OutputEnum, output_folder: str):
     dataset = load_dataset("nuprl/CanItEdit", split="test")
     pipe = pipeline(model=hf_model_id, torch_dtype=torch.bfloat16, device_map="auto")
-    tokenizer = AutoTokenizer.from_pretrained(hf_model_id)
 
     model_type = model_type.value
 
@@ -126,47 +124,19 @@ def main(hf_model_id: str, model_type: OutputEnum, output_folder: str):
     accurate_count = 0
     
     for row in tqdm(dataset):
+        file_path = os.path.join(output_folder, f"{row['id']}_direct.txt")
+        if os.exists(file_path, "w+"):
+            continue
+
         old_contents = f"<TOP/>\n{row['before']}"
         formatted_input = f"# File:\n{old_contents}\n# Instruction:{row['instruction_descriptive']}"
         if model_type == "whole":
-            formatted_input += "Please rewrite the output in the form of a Python code block (start with ```python and end with ```)."
+            formatted_input += "Please completely the file given the instruction in the form of a Python code block (start with ```python and end with ```)."
         output = pipe(formatted_input, do_sample=True, max_new_tokens=500, top_p=0.95, **{"use_cache": True})
         output = output[0]["generated_text"]
-        # print(output)
-        # Take the output, save it, run it, and then check that it worked
-        if not(os.path.exists(output_folder)):
-            os.makedirs(output_folder)
-
-        new_code = ""
-        if model_type == "line":
-            new_code = add_line_modifications_to_code(old_contents, output)
-        elif model_type == "ir":
-            new_code = add_ir_modifications_to_code(old_contents, output)
-        elif model_type == "whole":
-            new_code = extract_code_block_for_direct_modifications(output)
-
-        test_file = open("test.py", "w+")
-        test_file.write(new_code + f"\n{row['tests']}\n" + "print('SUCCESS')")
-        execution_output, error = run_python_file_with_timeout("test.py", 7)
-
         out_file = open(os.path.join(output_folder, f"{row['id']}_direct.txt"), "w+")
         out_file.write(output)
         out_file.close()
-
-        out_file = open(os.path.join(output_folder, f"{row['id']}_processed.txt"), "w+")
-        out_file.write(new_code)
-        out_file.close()
-
-        # Evaluate the response length in number of tokens
-        tokens = tokenizer(output)
-        # print(len(tokens))
-
-        output_data_json[row["id"]] = {}
-        output_data_json[row["id"]]["length"] = len(tokens)
-        output_data_json[row["id"]]["correct"] = ("SUCCESS" in execution_output)
-        
-        token_count += len(tokens)
-        accurate_count += 1
     
     out_file = open(os.path.join(output_folder, "data.json"), "w+")
     out_file.write(json.dumps(output_data_json, indent=4))
