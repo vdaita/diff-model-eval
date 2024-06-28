@@ -119,10 +119,6 @@ def main(hf_model_id: str, model_type: OutputEnum, output_folder: str):
 
     model_type = model_type.value
 
-    output_data_json = {}
-    token_count = 0
-    accurate_count = 0
-    
     for row in tqdm(dataset):
         file_path = os.path.join(output_folder, f"{row['id']}_direct.txt")
         if os.exists(file_path, "w+"):
@@ -137,13 +133,6 @@ def main(hf_model_id: str, model_type: OutputEnum, output_folder: str):
         out_file = open(os.path.join(output_folder, f"{row['id']}_direct.txt"), "w+")
         out_file.write(output)
         out_file.close()
-    
-    out_file = open(os.path.join(output_folder, "data.json"), "w+")
-    out_file.write(json.dumps(output_data_json, indent=4))
-    out_file.close()
-
-    print("Average token count in output: ", token_count / len(output_data_json))
-    print("Number correct: ", accurate_count, "/", len(output_data_json))
 
 if __name__ == "__main__":
     typer.run(main)
