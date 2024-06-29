@@ -159,6 +159,8 @@ def main(hf_model_id: str, model_type: OutputEnum, output_folder: str):
         python_code = new_code + f"\n{row['tests']}\n" + "print('SUCCESS')"
         execution_output, error = run_python_code_with_timeout(python_code, 7)
 
+        print(execution_output)
+
         out_file = open(os.path.join(output_folder, f"{row['id']}_processed.txt"), "w+")
         out_file.write(new_code)
         out_file.close()
