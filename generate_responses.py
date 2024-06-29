@@ -23,9 +23,12 @@ def main(hf_model_id: str, model_type: OutputEnum, output_folder: str):
 
     model_type = model_type.value
 
+    if not(os.path.exists(output_folder)):
+        os.makedirs(output_folder)
+
     for row in tqdm(dataset):
         file_path = os.path.join(output_folder, f"{row['id']}_direct.txt")
-        if os.path.exists(file_path, "w+"):
+        if os.path.exists(file_path):
             continue
 
         old_contents = f"<TOP/>\n{row['before']}"
@@ -34,7 +37,7 @@ def main(hf_model_id: str, model_type: OutputEnum, output_folder: str):
             formatted_input += "\nPlease completely rewrite the file, adding  the changes from instruction. Output using a Python code block (start with ```python and end with ```)."
         output = pipe(formatted_input, do_sample=True, max_new_tokens=500, top_p=0.95, **{"use_cache": True})
         output = output[0]["generated_text"]
-        out_file = open(os.path.join(output_folder, f"{row['id']}_direct.txt"), "w+")
+        out_file = open(file_path, "w+")
         out_file.write(output)
         out_file.close()
 
