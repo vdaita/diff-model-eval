@@ -9,6 +9,7 @@ import os
 import json
 import diff_utils
 import subprocess
+import tempfile
 from enum import Enum
 
 class OutputEnum(str, Enum):
@@ -94,13 +95,20 @@ def extract_code_block_for_direct_modifications(response):
         return response.split("```python")[2].split("```")[0].strip()
     except:
         # print("Failed to parse code block: ", response)
-        return response.split("with ```).")[1].strip()
+        try: 
+            return response.split("with ```).")[1].strip()
+        except:
+            return response # This just means that the instruction got stripped away.
 
-def run_python_file_with_timeout(file_path, timeout):
+def run_python_code_with_timeout(contents, timeout):
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".py", mode="w") as temp_file:
+        temp_file.write(contents)
+        temp_file_path = temp_file.name    
+
     try:
         # Run the python file with a timeout
         result = subprocess.run(
-            ["python", file_path],
+            ["python", temp_file_path],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             timeout=timeout,
@@ -112,6 +120,9 @@ def run_python_file_with_timeout(file_path, timeout):
         return "The process timed out.", ""
     except Exception as e:
         return "", str(e)
+    finally:
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
 
 def main(hf_model_id: str, model_type: OutputEnum, output_folder: str):
     dataset = load_dataset("nuprl/CanItEdit", split="test")
@@ -145,9 +156,8 @@ def main(hf_model_id: str, model_type: OutputEnum, output_folder: str):
 
         new_code = new_code.replace("<TOP/>", "")
 
-        test_file = open("test.py", "w+")
-        test_file.write(new_code + f"\n{row['tests']}\n" + "print('SUCCESS')")
-        execution_output, error = run_python_file_with_timeout("test.py", 7)
+        python_code = new_code + f"\n{row['tests']}\n" + "print('SUCCESS')"
+        execution_output, error = run_python_code_with_timeout(python_code, 7)
 
         out_file = open(os.path.join(output_folder, f"{row['id']}_processed.txt"), "w+")
         out_file.write(new_code)
