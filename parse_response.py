@@ -91,10 +91,10 @@ def add_ir_modifications_to_code(original_code, modification_xml):
 
 def extract_code_block_for_direct_modifications(response):
     try:
-        return response.split("```python")[1].split("```")[0].strip()
+        return response.split("```python")[2].split("```")[0].strip()
     except:
-        print("Failed to parse code block: ", response)
-        return ""
+        # print("Failed to parse code block: ", response)
+        return response.split("with ```).")[1].strip()
 
 def run_python_file_with_timeout(file_path, timeout):
     try:
@@ -158,10 +158,10 @@ def main(hf_model_id: str, model_type: OutputEnum, output_folder: str):
         # print(len(tokens))
 
         output_data_json[row["id"]] = {}
-        output_data_json[row["id"]]["length"] = len(tokens)
+        output_data_json[row["id"]]["length"] = len(tokens[0])
         output_data_json[row["id"]]["correct"] = ("SUCCESS" in execution_output)
         
-        token_count += len(tokens)
+        token_count += len(tokens[0])
         
         if "SUCCESS" in execution_output:
             accurate_count += 1
