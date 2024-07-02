@@ -10,6 +10,9 @@ import json
 import diff_utils
 import subprocess
 from enum import Enum
+from openai import OpenAI
+import tiktoken
+from dotenv import load_dotenv
 
 shot_ir_format = """## File:
 <TOP/>
@@ -70,15 +73,24 @@ class OutputEnum(str, Enum):
     whole = "whole"
     udiff = "udiff"
 
-def main(hf_model_id: str, model_type: OutputEnum, output_folder: str):
-    dataset = load_dataset("nuprl/CanItEdit", split="test")
+def main(model_id: str, model_type: OutputEnum, output_folder: str, api: str, col_name: str):
+    dataset = load_dataset("vdaita/CanItEditResponses")
     # pipe = pipeline(model=hf_model_id, torch_dtype=torch.bfloat16, device_map="auto")
-    model = AutoModelForCausalLM.from_pretrained(model=hf_model_id, device_map="auto", torch_dtype=torch.bfloat16)
-    tokenizer = AutoTokenizer.from_pretrained(model=hf_model_id, device_map="auto", torch_dtype=torch.bfloat16)
+    
+    if api == "hf":
+        model = AutoModelForCausalLM.from_pretrained(model=model_id, device_map="auto", torch_dtype=torch.bfloat16)
+        tokenizer = AutoTokenizer.from_pretrained(model=model_id, device_map="auto", torch_dtype=torch.bfloat16)
+    elif api == "openai":
+        model = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        tokenizer = tiktoken.encoding_for_model("gpt-4o")
+    
     model_type = model_type.value
 
     if not(os.path.exists(output_folder)):
         os.makedirs(output_folder)
+
+    outputs = []
+    outputs_token_length = []
 
     for row in tqdm(dataset):
         file_path = os.path.join(output_folder, f"{row['id']}_direct.txt")
@@ -106,13 +118,29 @@ def main(hf_model_id: str, model_type: OutputEnum, output_folder: str):
 {row['instruction_descriptive']}
 
 """
-        
-        formatted_input = tokenizer.apply_chat_template([{
-            "role": "user",
-            "content": formatted_input
-        }], add_generation_prompt=True, tokenize=True, return_tensors="pt")
-        output = model(**formatted_input)
-        output = tokenizer.batch_decode(output)[0]
+        output = ""
+
+        if api == "hf":
+            formatted_input = tokenizer.apply_chat_template([{
+                "role": "user",
+                "content": formatted_input
+            }], add_generation_prompt=True, tokenize=True, return_tensors="pt")
+            output = model(**formatted_input)
+            output = output[:, formatted_input.shape[1]:][0]
+            outputs_token_length.append(output.shape[0])
+            output = tokenizer.decode(output)
+            
+            outputs.append(output)
+        elif api == "openai":
+            output = model.chat.completions.create(
+                messages=[{"role": "user", "content": formatted_input}],
+                max_tokens=1000,
+                model=model_id
+            )
+            output = output.choices[0].message.content
+
+            outputs_token_length.append(len(tokenizer.encode(output)))
+            outputs.append(output)
 
         # output = pipe(formatted_input, do_sample=True, max_new_tokens=500, top_p=0.95, **{"use_cache": True})
         # output = row['outputs']
@@ -120,6 +148,10 @@ def main(hf_model_id: str, model_type: OutputEnum, output_folder: str):
         out_file = open(file_path, "w+")
         out_file.write(output)
         out_file.close()
+    
+    dataset = dataset.add_column(f"{col_name}_response", outputs)
+    dataset = dataset.add_column(f"{col_name}_count", outputs)
+    dataset.push_to_hub("vdaita/CanItEditResponses")
 
 if __name__ == "__main__":
     typer.run(main)
