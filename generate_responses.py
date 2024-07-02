@@ -14,6 +14,8 @@ from openai import OpenAI
 import tiktoken
 from dotenv import load_dotenv
 
+load_dotenv(".env")
+
 shot_ir_format = """## File:
 <TOP/>
 def multiply(a, b):
@@ -74,7 +76,7 @@ class OutputEnum(str, Enum):
     udiff = "udiff"
 
 def main(model_id: str, model_type: OutputEnum, output_folder: str, api: str, col_name: str):
-    dataset = load_dataset("vdaita/CanItEditResponses")
+    dataset = load_dataset("vdaita/CanItEditResponses", split="test")
     # pipe = pipeline(model=hf_model_id, torch_dtype=torch.bfloat16, device_map="auto")
     
     if api == "hf":
@@ -82,7 +84,7 @@ def main(model_id: str, model_type: OutputEnum, output_folder: str, api: str, co
         tokenizer = AutoTokenizer.from_pretrained(model=model_id, device_map="auto", torch_dtype=torch.bfloat16)
     elif api == "openai":
         model = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-        tokenizer = tiktoken.encoding_for_model("gpt-4o")
+        tokenizer = tiktoken.get_encoding("cl100k_base")
     
     model_type = model_type.value
 
