@@ -80,8 +80,8 @@ def main(model_id: str, model_type: OutputEnum, output_folder: str, api: str, co
     # pipe = pipeline(model=hf_model_id, torch_dtype=torch.bfloat16, device_map="auto")
     
     if api == "hf":
-        model = AutoModelForCausalLM.from_pretrained(model=model_id, device_map="auto", torch_dtype=torch.bfloat16)
-        tokenizer = AutoTokenizer.from_pretrained(model=model_id, device_map="auto", torch_dtype=torch.bfloat16)
+        model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto", torch_dtype=torch.bfloat16)
+        tokenizer = AutoTokenizer.from_pretrained(model_id, device_map="auto", torch_dtype=torch.bfloat16)
     elif api == "openai":
         model = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
         tokenizer = tiktoken.get_encoding("cl100k_base")
