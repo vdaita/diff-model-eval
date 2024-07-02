@@ -64,11 +64,11 @@ def main(hf_model_id: str, model_type: OutputEnum, output_folder: str):
         # if model_type == "whole":
         #     formatted_input += "\nPlease completely rewrite the file, adding  the changes from instruction. Output using a Python code block (start with ```python and end with ```)."
         
-        dataset_inputs.append(formatted_input)
+        # dataset_inputs.append(formatted_input)
 
-    outputs = pipe(dataset_inputs)
-    outputs = [output[0]["generated_text"] for output in outputs]
-    dataset["outputs"] = outputs
+    # outputs = pipe(dataset_inputs)
+    # outputs = [output[0]["generated_text"] for output in outputs]
+    # dataset["outputs"] = outputs
     
     model_type = model_type.value
 
