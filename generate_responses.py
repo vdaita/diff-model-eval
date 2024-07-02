@@ -94,6 +94,8 @@ def main(model_id: str, model_type: OutputEnum, output_folder: str, api: str, co
     outputs = []
     outputs_token_length = []
 
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     for row in tqdm(dataset):
         file_path = os.path.join(output_folder, f"{row['id']}_direct.txt")
         if os.path.exists(file_path):
@@ -126,8 +128,9 @@ def main(model_id: str, model_type: OutputEnum, output_folder: str, api: str, co
             formatted_input = tokenizer.apply_chat_template([{
                 "role": "user",
                 "content": formatted_input
-            }], add_generation_prompt=True, tokenize=True, return_tensors="pt")
-            output = model(**formatted_input)
+            }], add_generation_prompt=True, tokenize=True, return_tensors="pt").to(device)
+            # output = model(**formatted_input)
+            output = model.generate(formatted_input, max_new_tokens=1000, do_sample=True, top_p=0.95)
             output = output[:, formatted_input.shape[1]:][0]
             outputs_token_length.append(output.shape[0])
             output = tokenizer.decode(output)
@@ -152,7 +155,7 @@ def main(model_id: str, model_type: OutputEnum, output_folder: str, api: str, co
         out_file.close()
     
     dataset = dataset.add_column(f"{col_name}_response", outputs)
-    dataset = dataset.add_column(f"{col_name}_count", outputs)
+    dataset = dataset.add_column(f"{col_name}_count", outputs_token_length)
     dataset.push_to_hub("vdaita/CanItEditResponses")
 
 if __name__ == "__main__":
