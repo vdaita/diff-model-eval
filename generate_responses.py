@@ -69,6 +69,18 @@ def sub(x, y):
     return x - y
 ```"""
 
+# shot_code_editor = """ ## File:
+# ```python
+# def add(a, b):
+#     return a + b
+# ```
+# ## Changes:
+# Add a "sub" function that subtracts two numbers. Also write docstrings for both functions and change a,b to x,y.
+# ### Response:
+# ```python
+
+# """
+
 class OutputEnum(str, Enum):
     line = "line"
     ir = "ir"

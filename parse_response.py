@@ -1,6 +1,6 @@
 from datasets import load_dataset
 from transformers import pipeline, AutoTokenizer
-from typing import Literal
+from typing import Literal, Optional
 import torch
 import typer
 from tqdm import tqdm
@@ -11,13 +11,13 @@ import diff_utils
 import subprocess
 import tempfile
 from enum import Enum
+from typing_extensions import Annotated
 
 class OutputEnum(str, Enum):
     line = "line"
     ir = "ir"
     whole = "whole"
     udiff = "udiff"
-
 
 def add_line_modifications_to_code(original_code, modification_xml):
     new_code = []
@@ -67,6 +67,7 @@ def add_ir_modifications_to_code(original_code, modification_xml):
 
     delete_pattern = re.compile(r'<Delete>(.*?)</Delete>')
     insert_pattern = re.compile(r'<Insert>(.*?)</Insert>')
+    replace_pattern = re.compile(r'<Replace>(.*?)</Replace>')
 
     for match in delete_pattern.findall(modification_xml):
         try:
@@ -88,11 +89,23 @@ def add_ir_modifications_to_code(original_code, modification_xml):
         except:
             print("Error parsing code modification: ", match)
 
+    for match in replace_pattern.findall(modification_xml):
+        try:
+            orig_lines = match.split("<With>")[0]
+            new_lines = match.split("<With>")[1]
+            existing_lines_match = diff_utils.find_best_match(existing_lines, original_code)
+            new_code = new_code.replace(
+                existing_lines_match.block,
+                new_lines
+            )
+        except:
+            print("Error parsing code replacement: ", match)
+
     return new_code
 
 def extract_code_block_for_direct_modifications(response):
     try:
-        return response.split("```python")[2].split("```")[0].strip()
+        return response.split("```python")[1].split("```")[0].strip()
     except:
         # print("Failed to parse code block: ", response)
         try: 
@@ -123,24 +136,34 @@ def run_python_code_with_timeout(contents, timeout):
     finally:
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
+        
 
-def main(hf_model_id: str, model_type: OutputEnum, output_folder: str):
-    dataset = load_dataset("nuprl/CanItEdit", split="test")
-    tokenizer = AutoTokenizer.from_pretrained(hf_model_id)
+def main(model_type: OutputEnum, use_ds: bool, column: Annotated[Optional[str], typer.Argument()] = None, output_folder: Annotated[Optional[str], typer.Argument()] = None):
+    dataset = load_dataset("vdaita/CanItEditResponses", split="test")
+    # tokenizer = AutoTokenizer.from_pretrained(hf_model_id)
 
     model_type = model_type.value
 
     output_data_json = {}
     token_count = 0
     accurate_count = 0
+
+    if not(os.path.exists(output_folder)):
+        os.makedirs(output_folder)
     
     for row in tqdm(dataset):
         old_contents = f"<TOP/>\n{row['before']}"
 
-        file_path = os.path.join(output_folder, f"{row['id']}_direct.txt")
-        output_file = open(file_path, "r")
-        output = output_file.read()
-        output_file.close()
+        output = ""
+
+        if use_ds:
+            output = row[column]
+        else:
+            file_path = os.path.join(output_folder, f"{row['id']}_direct.txt")
+            output_file = open(file_path, "r")
+            output = output_file.read()
+            output_file.close()
+        
         # print(output)
         # Take the output, save it, run it, and then check that it worked
         if not(os.path.exists(output_folder)):
@@ -159,22 +182,18 @@ def main(hf_model_id: str, model_type: OutputEnum, output_folder: str):
         python_code = new_code + f"\n{row['tests']}\n" + "print('SUCCESS')"
         execution_output, error = run_python_code_with_timeout(python_code, 7)
 
-        print(execution_output)
+        print(execution_output, error)
 
         out_file = open(os.path.join(output_folder, f"{row['id']}_processed.txt"), "w+")
         out_file.write(new_code)
         out_file.close()
 
         # Evaluate the response length in number of tokens
-        tokens = tokenizer(output)
         # print(len(tokens))
 
         output_data_json[row["id"]] = {}
-        output_data_json[row["id"]]["length"] = len(tokens[0])
         output_data_json[row["id"]]["correct"] = ("SUCCESS" in execution_output)
-        
-        token_count += len(tokens[0])
-        
+                
         if "SUCCESS" in execution_output:
             accurate_count += 1
     
@@ -182,7 +201,6 @@ def main(hf_model_id: str, model_type: OutputEnum, output_folder: str):
     out_file.write(json.dumps(output_data_json, indent=4))
     out_file.close()
 
-    print("Average token count in output: ", token_count / len(output_data_json))
     print("Number correct: ", accurate_count, "/", len(output_data_json))
 
 if __name__ == "__main__":
