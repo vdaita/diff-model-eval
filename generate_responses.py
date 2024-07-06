@@ -136,15 +136,16 @@ def main(model_id: str, model_type: OutputEnum, output_folder: str, api: str, co
 
 """
         elif model_type == "ellipsis":
+            before = "print('Program start')\n" + row['before'] + "\nprint('Program end')"
             formatted_input = f"""Rewrite the file, using ellipsis to skip over code that should remain unchanged
 
-        ## File:
-        {"print('Program start')\n" + row['before'] + "\nprint('Program end')"}
+## File:
+{before}
 
-        ## Changes: 
-        {row['instruction_descriptive']}
+## Changes: 
+{row['instruction_descriptive']}
 
-        """
+"""
         output = ""
 
         if api == "hf":
