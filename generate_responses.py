@@ -137,7 +137,7 @@ def main(model_id: str, model_type: OutputEnum, output_folder: str, api: str, co
 """
         elif model_type == "ellipsis":
             before = "print('Program start')\n" + row['before'] + "\nprint('Program end')"
-            formatted_input = f"""Rewrite the file, using ellipsis to skip over code that should remain unchanged
+            formatted_input = f"""Rewrite the file, using ellipsis (@@ ... @@) to skip over chunks of code that should remain unchanged.
 
 ## File:
 {before}
@@ -177,7 +177,8 @@ def main(model_id: str, model_type: OutputEnum, output_folder: str, api: str, co
         out_file = open(file_path, "w+")
         out_file.write(output)
         out_file.close()
-    
+
+    dataset = dataset.remove_columns([f"{col_name}_response", f"{col_name}_count"])
     dataset = dataset.add_column(f"{col_name}_response", outputs)
     dataset = dataset.add_column(f"{col_name}_count", outputs_token_length)
     dataset.push_to_hub("vdaita/CanItEditResponses")

@@ -12,14 +12,19 @@ import subprocess
 import tempfile
 from enum import Enum
 from typing_extensions import Annotated
+import sys
+sys.path.append("..")
 
-exec(compile(open("../diff-model/generate_ellipsis_format.py", "rb").read(), "generate_ellipsis_format.py", 'exec'), globals, locals)
+from diffmodel.generate_ellipsis_format import apply_ellipsis_code
+
+# exec(compile(open("../diff-model/generate_ellipsis_format.py", "rb").read(), "generate_ellipsis_format.py", 'exec'), globals, locals)
 
 class OutputEnum(str, Enum):
     line = "line"
     ir = "ir"
     whole = "whole"
     udiff = "udiff"
+    ellipsis = "ellipsis"
 
 def add_line_modifications_to_code(original_code, modification_xml):
     new_code = []
@@ -191,6 +196,8 @@ def main(model_type: OutputEnum, use_ds: bool, column: Annotated[Optional[str], 
         execution_output, error = run_python_code_with_timeout(python_code, 7)
 
         print(execution_output, error)
+        if "IndentationError" in error:
+            print(new_code)
 
         out_file = open(os.path.join(output_folder, f"{row['id']}_processed.txt"), "w+")
         out_file.write(new_code)
