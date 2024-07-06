@@ -86,6 +86,7 @@ class OutputEnum(str, Enum):
     ir = "ir"
     whole = "whole"
     udiff = "udiff"
+    ellipsis = "ellipsis"
 
 def main(model_id: str, model_type: OutputEnum, output_folder: str, api: str, col_name: str):
     dataset = load_dataset("vdaita/CanItEditResponses", split="test")
@@ -134,6 +135,16 @@ def main(model_id: str, model_type: OutputEnum, output_folder: str, api: str, co
 {row['instruction_descriptive']}
 
 """
+        elif model_type == "ellipsis":
+            formatted_input = f"""Rewrite the file, using ellipsis to skip over code that should remain unchanged
+
+        ## File:
+        {row['before']}
+
+        ## Changes: 
+        {row['instruction_descriptive']}
+
+        """
         output = ""
 
         if api == "hf":
