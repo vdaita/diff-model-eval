@@ -13,6 +13,8 @@ import tempfile
 from enum import Enum
 from typing_extensions import Annotated
 
+exec(compile(open("../diff-model/generate_ellipsis_format.py", "rb").read(), "generate_ellipsis_format.py", 'exec'), globals, locals)
+
 class OutputEnum(str, Enum):
     line = "line"
     ir = "ir"
@@ -152,7 +154,6 @@ def main(model_type: OutputEnum, use_ds: bool, column: Annotated[Optional[str], 
         os.makedirs(output_folder)
     
     for row in tqdm(dataset):
-        old_contents = f"<TOP/>\n{row['before']}"
 
         output = ""
 
@@ -171,11 +172,18 @@ def main(model_type: OutputEnum, use_ds: bool, column: Annotated[Optional[str], 
 
         new_code = ""
         if model_type == "line":
+            old_contents = f"<TOP/>\n{row['before']}"
             new_code = add_line_modifications_to_code(old_contents, output)
         elif model_type == "ir":
+            old_contents = f"<TOP/>\n{row['before']}"
             new_code = add_ir_modifications_to_code(old_contents, output)
         elif model_type == "whole":
+            old_contents = row['before']
             new_code = extract_code_block_for_direct_modifications(output)
+        elif model_type == "ellipsis":
+            extracted = extract_code_block_for_direct_modifications(output)
+            changed_before = f"print('Program started')\n{row['before']}\nprint('Program ended')"
+            new_code = apply_ellipsis_code(changed_before, extracted)
 
         new_code = new_code.replace("<TOP/>", "")
 

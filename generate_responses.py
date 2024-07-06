@@ -139,7 +139,7 @@ def main(model_id: str, model_type: OutputEnum, output_folder: str, api: str, co
             formatted_input = f"""Rewrite the file, using ellipsis to skip over code that should remain unchanged
 
         ## File:
-        {row['before']}
+        {"print('Program start')\n" + row['before'] + "\nprint('Program end')"}
 
         ## Changes: 
         {row['instruction_descriptive']}
